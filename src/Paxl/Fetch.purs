@@ -32,7 +32,7 @@ import Data.StrMap (StrMap)
 import Data.StrMap (lookup, singleton) as StrMap
 import Data.Symbol (class IsSymbol, SProxy(..), reflectSymbol)
 import Paxl.Effect (GenPaxlEffects)
-import Paxl.Monad (GenPaxl(..), Env, Result(..), Cont(..))
+import Paxl.Monad (GenPaxl(..), Env, Result(..), Cont(..), Val)
 import Paxl.RequestStore (BlockedFetch(..), CacheResult(..))
 import Paxl.RequestStore (class Cacheable, Result(..), cacheKey, peek, poke, prefixKey) as RequestStore
 import Paxl.RequestStore (class Cacheable, BlockedFetch(..), Result(..), Key(..), cacheKey) as ReExports
@@ -150,9 +150,12 @@ requestCached proxy req = GenPaxl \env → do
   cacheResult ← liftEff do
     RequestStore.peek env.requestStore key
   case cacheResult of
-    Resolved (RequestStore.Ok a) → pure (Done (unsafeCoerce a))
-    Resolved (RequestStore.Throw err) → pure (Throw err)
-    Waiting blockedVar → pure (Blocked (Cont (awaitBlocked (unsafeCoerce blockedVar))))
+    Resolved (RequestStore.Ok a) →
+      pure (Done ((unsafeCoerce ∷ Val → a) a))
+    Resolved (RequestStore.Throw err) →
+      pure (Throw err)
+    Waiting blockedVar →
+      pure (Blocked (Cont (awaitBlocked (unsafeCoerce blockedVar))))
     Uncached → do
       blockedFetch ← makeBlockedFetch (inject proxy req)
       liftEff do
