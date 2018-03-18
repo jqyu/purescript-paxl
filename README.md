@@ -4,9 +4,9 @@ this is meant to be a purescript translation of Haxl, using row types to constra
 
 # todo
 
-- [] cached requests
-- [] documentation
-- [] use Fail instances to get better error messages
-- [] remove eff parameter for simplicity?
-- [] write a nontrivial example
-- [] idk
+- [ ] cached requests
+- [ ] documentation
+- [ ] use Fail instances to get better error messages
+- [ ] remove eff parameter for simplicity?
+- [ ] write a nontrivial example
+- [ ] idk
