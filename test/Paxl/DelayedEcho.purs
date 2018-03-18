@@ -29,15 +29,15 @@ type Env =
   }
 
 
-print ∷ ∀ reqs eff. String → Paxl (DelayedEcho + reqs) eff Par
+print ∷ ∀ reqs. String → Paxl (DelayedEcho + reqs) Par
 print message = Par <$ string { message, milliseconds: 0 }
 
 
-string ∷ ∀ reqs eff. { message ∷ String, milliseconds ∷ Int } → Paxl (DelayedEcho + reqs) eff String
+string ∷ ∀ reqs. { message ∷ String, milliseconds ∷ Int } → Paxl (DelayedEcho + reqs) String
 string payload = request (inject _delayedEcho (DelayString id payload))
 
 
-int ∷ ∀ reqs eff. { message ∷ Int, milliseconds ∷ Int } → Paxl (DelayedEcho + reqs) eff Int
+int ∷ ∀ reqs. { message ∷ Int, milliseconds ∷ Int } → Paxl (DelayedEcho + reqs) Int
 int payload = request (inject _delayedEcho (DelayInt id payload))
 
 
@@ -87,22 +87,22 @@ fooEchoService = SProxy ∷ SProxy "fooEchoService"
 barEchoService = SProxy ∷ SProxy "barEchoService"
 
 
-fooDelayString ∷ ∀ reqs eff. String → Int → Paxl (Foo + reqs) eff String
+fooDelayString ∷ ∀ reqs. String → Int → Paxl (Foo + reqs) String
 fooDelayString message milliseconds =
   request (inject fooEchoService (DelayString id { message, milliseconds }))
 
 
-fooDelayInt ∷ ∀ reqs eff. Int → Int → Paxl (Foo + reqs) eff Int
+fooDelayInt ∷ ∀ reqs. Int → Int → Paxl (Foo + reqs) Int
 fooDelayInt message milliseconds =
   request (inject fooEchoService (DelayInt id { message, milliseconds }))
 
 
-barDelayString ∷ ∀ reqs eff. String → Int → Paxl (Bar + reqs) eff String
+barDelayString ∷ ∀ reqs. String → Int → Paxl (Bar + reqs) String
 barDelayString message milliseconds =
   request (inject barEchoService (DelayString id { message, milliseconds }))
 
 
-barDelayInt ∷ ∀ reqs eff. Int → Int → Paxl (Bar + reqs) eff Int
+barDelayInt ∷ ∀ reqs. Int → Int → Paxl (Bar + reqs) Int
 barDelayInt message milliseconds =
   request (inject barEchoService (DelayInt id { message, milliseconds }))
 
@@ -118,7 +118,7 @@ test2 = do
   launchAff_ $ runPaxl paxlEnv test2Paxl
 
 
-test2Paxl ∷ ∀ eff. Paxl (Foo + Bar + ()) eff Unit
+test2Paxl ∷ Paxl (Foo + Bar + ()) Unit
 test2Paxl = do
   outer ← barDelayString "Initial" 1000
   for_ (1..5) \i → do

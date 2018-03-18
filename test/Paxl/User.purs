@@ -93,19 +93,19 @@ data UserRequest a
   | SetUserJob (a ~ User) Id Job
 
 
-getUserIds ∷ ∀ reqs eff. Paxl (Service + reqs) eff (Array Id)
+getUserIds ∷ ∀ reqs. Paxl (Service + reqs) (Array Id)
 getUserIds = request (inject _userService (GetUserIds id))
 
 
-getUserById ∷ ∀ reqs eff. Id → Paxl (Service + reqs) eff User
+getUserById ∷ ∀ reqs. Id → Paxl (Service + reqs) User
 getUserById userId = request (inject _userService (GetUserById id userId))
 
 
-getUserByName ∷ ∀ reqs eff. String → Paxl (Service + reqs) eff (Maybe User)
+getUserByName ∷ ∀ reqs. String → Paxl (Service + reqs) (Maybe User)
 getUserByName name = request (inject _userService (GetUserByName id name))
 
 
-setUserJob ∷ ∀ reqs eff. Id → Job → Paxl (Service + reqs) eff User
+setUserJob ∷ ∀ reqs. Id → Job → Paxl (Service + reqs) User
 setUserJob userId job = request (inject _userService (SetUserJob id userId job))
 
 _userService = SProxy ∷ SProxy "userService"

@@ -15,16 +15,16 @@ import Control.Monad.Aff (Aff, Error, ParAff, parallel, sequential)
 import Control.Monad.Aff.AVar (AVar)
 import Control.Monad.Eff.Ref (Ref)
 import Data.List (List)
-import Paxl.Effect (type (:+), GenPaxlEffects)
+import Paxl.Effect (GenPaxlEffects)
 import Unsafe.Coerce (unsafeCoerce)
 
 
-newtype GenPaxl req eff a =
-  GenPaxl (Env req eff → Aff (GenPaxlEffects req :+ eff) (Result req eff a))
+newtype GenPaxl req a =
+  GenPaxl (Env req → Aff (GenPaxlEffects req ()) (Result req a))
 
 
-type Env req eff =
-  { fetcher ∷ forall a. Array (BlockedFetch req a) → ParAff (GenPaxlEffects req :+ eff) Unit
+type Env req =
+  { fetcher ∷ forall a. Array (BlockedFetch req a) → ParAff (GenPaxlEffects req ()) Unit
   , pending ∷ Ref (List (BlockedFetch req Val))
   }
 
@@ -32,37 +32,37 @@ type Env req eff =
 data Val
 
 
-data Result req eff a
+data Result req a
   = Done a
   | Throw Error
-  | Blocked (Cont req eff a)
+  | Blocked (Cont req a)
 
 
-data Cont req eff a
-  = Cont (GenPaxl req eff a)
-  | Bind (Cont req eff Val) (Val → GenPaxl req eff a)
-  | Fmap (Val → a) (Cont req eff Val)
+data Cont req a
+  = Cont (GenPaxl req a)
+  | Bind (Cont req Val) (Val → GenPaxl req a)
+  | Fmap (Val → a) (Cont req Val)
 
 
-makeBind ∷ ∀ req eff a b. Cont req eff a → (a → GenPaxl req eff b) → Cont req eff b
+makeBind ∷ ∀ req a b. Cont req a → (a → GenPaxl req b) → Cont req b
 makeBind m k = Bind (unsafeCoerce m) (unsafeCoerce k)
 
 infixl 1 makeBind as :>>=
 
 
-makeFmap ∷ ∀ req eff a b. (a → b) → Cont req eff a → Cont req eff b
+makeFmap ∷ ∀ req a b. (a → b) → Cont req a → Cont req b
 makeFmap f m = Fmap (unsafeCoerce f) (unsafeCoerce m)
 
 infixl 4 makeFmap as :<$>
 
 
-makeFlap ∷ ∀ req eff a b. Cont req eff (a → b) → a → Cont req eff b
+makeFlap ∷ ∀ req a b. Cont req (a → b) → a → Cont req b
 makeFlap f m = (\f' → f' m) :<$> f
 
 infixl 4 makeFlap as :<@>
 
 
-toPaxl ∷ ∀ req eff a. Cont req eff a → GenPaxl req eff a
+toPaxl ∷ ∀ req a. Cont req a → GenPaxl req a
 toPaxl (Cont paxl) = paxl
 toPaxl (Bind m k) =
   case m of
@@ -76,14 +76,14 @@ toPaxl (Fmap f x) =
     Fmap f' x' → toPaxl ((f <<< f') :<$> x')
 
 
-instance functorGenPaxl ∷ Functor (GenPaxl req eff) where
+instance functorGenPaxl ∷ Functor (GenPaxl req) where
   map f (GenPaxl m) = GenPaxl \env →
     m env <#> case _ of
       Done a → Done (f a)
       Throw e → Throw e
       Blocked cont → Blocked (f :<$> cont)
 
-instance applyGenPaxl ∷ Apply (GenPaxl req eff) where
+instance applyGenPaxl ∷ Apply (GenPaxl req) where
   apply (GenPaxl ff) (GenPaxl fa) = GenPaxl \env →
       sequential (go <$> parallel (ff env) <*> parallel (fa env))
     where
@@ -97,10 +97,10 @@ instance applyGenPaxl ∷ Apply (GenPaxl req eff) where
       go (Blocked fcont) (Blocked acont) =
         Blocked (Cont (toPaxl fcont <*> toPaxl acont))
 
-instance applicativeGenPaxl ∷ Applicative (GenPaxl req eff) where
+instance applicativeGenPaxl ∷ Applicative (GenPaxl req) where
   pure a = GenPaxl \_ → pure (Done a)
 
-instance bindGenPaxl ∷ Bind (GenPaxl req eff) where
+instance bindGenPaxl ∷ Bind (GenPaxl req) where
   bind (GenPaxl fm) k = GenPaxl \env → do
     m ← fm env
     case m of
@@ -108,7 +108,7 @@ instance bindGenPaxl ∷ Bind (GenPaxl req eff) where
       Throw e → pure (Throw e)
       Blocked cont → pure (Blocked (cont :>>= k))
 
-instance monadGenPaxl ∷ Monad (GenPaxl req eff)
+instance monadGenPaxl ∷ Monad (GenPaxl req)
 
 
 newtype BlockedFetch req a = BlockedFetch

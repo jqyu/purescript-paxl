@@ -18,12 +18,15 @@ import Paxl.Fetch (class Fetchable, BlockedFetch(..), Req, ResultVal(..), comple
 type LiftAff eff reqs = ( aff ∷ Req (AffWrapper eff) | reqs )
 
 
-succeed ∷ ∀ reqs reqEff eff a. Aff reqEff a → Paxl ( LiftAff reqEff + reqs ) eff a
+succeed ∷ ∀ reqs eff a. Aff eff a → Paxl ( LiftAff eff + reqs ) a
 succeed aff = request (inject _aff (Succeed aff))
 
 
-fail ∷ ∀ reqs reqEff eff a. Paxl ( LiftAff reqEff + reqs ) eff a
+fail ∷ ∀ reqs eff a. Paxl ( LiftAff eff + reqs ) a
 fail = request (inject _aff Fail)
+
+
+_aff = SProxy ∷ SProxy "aff"
 
 
 data AffWrapper eff a
@@ -42,11 +45,3 @@ instance fetchableAffWrapper ∷ Fetchable (AffWrapper eff) a eff where
             Left err → ThrowPaxl err
         Fail → do
           completeBlockedFetch bf (ThrowPaxl (error "AffWrapper:Fail"))
-
-
-_aff = SProxy ∷ SProxy "aff"
-
-type PaxlAff reqEff reqs =
-  Paxl ( AffReq reqEff + reqs )
-
-type AffReq reqEff reqs = ( affService ∷ Req (AffWrapper reqEff) | reqs )

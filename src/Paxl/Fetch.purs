@@ -32,7 +32,7 @@ import Data.Record (delete, get, insert) as Record
 import Data.StrMap (StrMap)
 import Data.StrMap (lookup, singleton) as StrMap
 import Data.Symbol (class IsSymbol, SProxy(..), reflectSymbol)
-import Paxl.Effect (type (:+), GenPaxlEffects)
+import Paxl.Effect (GenPaxlEffects)
 import Paxl.Monad (GenPaxl(..), Env, Result(..), Cont(..), BlockedFetch(..), ResultVal(..))
 import Type.Prelude (class RowLacks)
 import Type.Row (class RowToList, RLProxy(..), Nil, Cons)
@@ -44,7 +44,7 @@ import Paxl.Monad (BlockedFetch(..), ResultVal(..)) as ReExports
 class Hashable req where
   hash ∷ forall a. req a → String
 
-class Fetchable req env eff | req → env, req env → eff where
+class Fetchable req env eff | req → env, req → eff where
   fetch ∷ env → forall a. Array (BlockedFetch req a) → ParAff eff Unit
 
 
@@ -140,26 +140,26 @@ inject proxy req =
     (FetchRep { sym: reflectSymbol proxy, req })
 
 
-request ∷ ∀ req eff a. req a → GenPaxl req eff a
+request ∷ ∀ req a. req a → GenPaxl req a
 request req = GenPaxl \env → do
   blockedFetch ← makeBlockedFetch req
   enqueueBlockedFetch env blockedFetch
     $> Blocked (Cont (awaitBlockedFetch blockedFetch))
 
 
-awaitBlockedFetch ∷ ∀ req eff a. BlockedFetch req a → GenPaxl req eff a
+awaitBlockedFetch ∷ ∀ req a. BlockedFetch req a → GenPaxl req a
 awaitBlockedFetch (BlockedFetch { blockedVar }) = GenPaxl \_ →
   AVar.readVar blockedVar <#> case _ of
     Ok a → Done a
     ThrowPaxl err → Throw err
 
 
-enqueueBlockedFetch ∷ ∀ req eff a. Env req eff → BlockedFetch req a → Aff (GenPaxlEffects req :+ eff) Unit
+enqueueBlockedFetch ∷ ∀ req a. Env req → BlockedFetch req a → Aff (GenPaxlEffects req ()) Unit
 enqueueBlockedFetch { pending } blockedFetch = liftEff do
   modifyRef pending (List.Cons (unsafeCoerce blockedFetch))
 
 
-makeBlockedFetch ∷ ∀ req eff a. req a → Aff (GenPaxlEffects req :+ eff) (BlockedFetch req a)
+makeBlockedFetch ∷ ∀ req a. req a → Aff (GenPaxlEffects req ()) (BlockedFetch req a)
 makeBlockedFetch req =
   AVar.makeEmptyVar <#> \blockedVar → BlockedFetch { request: req, blockedVar }
 
