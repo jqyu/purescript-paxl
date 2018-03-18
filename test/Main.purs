@@ -47,10 +47,10 @@ makeScientist user = do
 main ∷ ∀ e. Eff (PaxlEffects (DelayedEcho + User.Service + ()) :+ e) Unit
 main = do
   users ← newRef User.initialUsers
-  let env =
-        { delayedEcho: { verbose: false, prefix: "[DEBUG] " }
-        , userService: { verbose: true, users }
-        }
-  programEnv ← initEnv env
-  runPaxl programEnv program
-    |> launchAff_
+  launchAff_ do
+    let env =
+          { delayedEcho: { verbose: false, prefix: "[DEBUG] " }
+          , userService: { verbose: true, users }
+          }
+    programEnv ← initEnv env
+    runPaxl programEnv program
