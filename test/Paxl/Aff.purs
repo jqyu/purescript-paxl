@@ -5,13 +5,12 @@ module Test.Paxl.Aff
   , fail
   ) where
 
-import Prelude
+import Paxl
 
 import Control.Monad.Aff (Aff, error, parallel, try)
 import Data.Either (Either(..))
 import Data.Symbol (SProxy(..))
 import Data.Traversable (for_)
-import Paxl (type (+), Paxl, (<|))
 import Paxl.Fetch (class Fetchable, BlockedFetch(..), Req, ResultVal(..), completeBlockedFetch, inject, request)
 
 

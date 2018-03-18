@@ -6,7 +6,7 @@ module Test.Paxl.DelayedEcho
   , test2
   ) where
 
-import Prelude
+import Paxl
 
 import Control.Monad.Aff (Milliseconds(Milliseconds), delay, launchAff_, parallel, sequential)
 import Control.Monad.Aff.Console (CONSOLE, log)
@@ -17,7 +17,6 @@ import Data.Int (toNumber) as Int
 import Data.Leibniz (type (~))
 import Data.Symbol (SProxy(..))
 import Data.Traversable (for_)
-import Paxl (type (+), type (:+), Par(..), Paxl, PaxlEffects, initEnv, runPaxl, (<|), (|>))
 import Paxl.Fetch (class Fetchable, class Hashable, Req, BlockedFetch(..), ResultVal(..), completeBlockedFetchOf, inject, request)
 
 
@@ -29,8 +28,8 @@ type Env =
   }
 
 
-print ∷ ∀ reqs. String → Paxl (DelayedEcho + reqs) Par
-print message = Par <$ string { message, milliseconds: 0 }
+print ∷ ∀ reqs. String → Paxl (DelayedEcho + reqs) Unit
+print message = void <| string { message, milliseconds: 0 }
 
 
 string ∷ ∀ reqs. { message ∷ String, milliseconds ∷ Int } → Paxl (DelayedEcho + reqs) String

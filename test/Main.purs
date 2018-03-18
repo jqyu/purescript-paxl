@@ -1,22 +1,23 @@
 module Test.Main (main) where
 
-import Prelude
+import Paxl
 
 import Control.Monad.Aff (launchAff_)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Ref (newRef)
 import Data.Traversable (for, for_)
-import Paxl (type (+), type (:+), Par(..), Paxl, PaxlEffects, initEnv, runPaxl, (|>))
 import Test.Paxl.DelayedEcho (DelayedEcho)
 import Test.Paxl.DelayedEcho (print) as DelayedEcho
 import Test.Paxl.User (User)
 import Test.Paxl.User as User
 
 
-program ∷ Paxl (DelayedEcho + User.Service + ()) Par
+program ∷ Paxl (DelayedEcho + User.Service + ()) Unit
 program = do
   DelayedEcho.print "Example program 1"
   DelayedEcho.print "Example program 2"
+  _ ← DelayedEcho.print "Explicit delay"
+  DelayedEcho.print "Post explicit delay"
   users ← getUsers
   printUsers(users)
   for_ users \user → do
@@ -32,9 +33,9 @@ getUsers = do
     User.getUserById userId
 
 
-printUsers ∷ Array User → ∀ reqs. Paxl (DelayedEcho + reqs) Par
+printUsers ∷ Array User → ∀ reqs. Paxl (DelayedEcho + reqs) Unit
 printUsers users =
-  Par <$ for users \user → do
+  for_ users \user → do
     DelayedEcho.print (show user)
 
 
@@ -49,7 +50,7 @@ main = do
   users ← newRef User.initialUsers
   launchAff_ do
     let env =
-          { delayedEcho: { verbose: false, prefix: "[DEBUG] " }
+          { delayedEcho: { verbose: true, prefix: "[DEBUG] " }
           , userService: { verbose: true, users }
           }
     programEnv ← initEnv env

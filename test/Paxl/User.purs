@@ -13,7 +13,7 @@ module Test.Paxl.User
   , initialUsers
   ) where
 
-import Prelude
+import Paxl
 
 import Control.Monad.Aff (error, parallel)
 import Control.Monad.Aff.Console (CONSOLE, log)
@@ -29,7 +29,6 @@ import Data.StrMap (fromFoldable, lookup) as StrMap
 import Data.String (toLower) as String
 import Data.Symbol (SProxy(..))
 import Data.Tuple (Tuple(..))
-import Paxl (type (+), Paxl, (<|), (|>))
 import Paxl.Fetch (class Fetchable, class Hashable, BlockedFetch(..), Req, ResultVal(..), completeBlockedFetchOf, hash, inject, request)
 
 -- User types
