@@ -4,18 +4,16 @@ module Paxl.Monad
   , Val
   , Result(..)
   , Cont(..)
-  , BlockedFetch(..)
-  , ResultVal(..)
   , toPaxl
   ) where
 
 import Prelude
 
 import Control.Monad.Aff (Aff, Error, ParAff, parallel, sequential)
-import Control.Monad.Aff.AVar (AVar)
 import Control.Monad.Eff.Ref (Ref)
 import Data.List (List)
 import Paxl.Effect (GenPaxlEffects)
+import Paxl.RequestStore (BlockedFetch, RequestStore)
 import Unsafe.Coerce (unsafeCoerce)
 
 
@@ -26,6 +24,7 @@ newtype GenPaxl req a =
 type Env req =
   { fetcher ∷ forall a. Array (BlockedFetch req a) → ParAff (GenPaxlEffects req ()) Unit
   , pending ∷ Ref (List (BlockedFetch req Val))
+  , requestStore ∷ RequestStore req Val
   }
 
 
@@ -109,14 +108,3 @@ instance bindGenPaxl ∷ Bind (GenPaxl req) where
       Blocked cont → pure (Blocked (cont :>>= k))
 
 instance monadGenPaxl ∷ Monad (GenPaxl req)
-
-
-newtype BlockedFetch req a = BlockedFetch
-  { request ∷ req a
-  , blockedVar ∷ AVar (ResultVal a)
-  }
-
-
-data ResultVal a
-  = Ok a
-  | ThrowPaxl Error

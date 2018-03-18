@@ -29,7 +29,7 @@ import Data.StrMap (fromFoldable, lookup) as StrMap
 import Data.String (toLower) as String
 import Data.Symbol (SProxy(..))
 import Data.Tuple (Tuple(..))
-import Paxl.Fetch (class Fetchable, class Hashable, BlockedFetch(..), Req, ResultVal(..), completeBlockedFetchOf, hash, inject, request)
+import Paxl.Fetch (class Fetchable, BlockedFetch(..), Req, Result(..), completeBlockedFetchOf, request)
 
 -- User types
 
@@ -93,19 +93,19 @@ data UserRequest a
 
 
 getUserIds ∷ ∀ reqs. Paxl (Service + reqs) (Array Id)
-getUserIds = request (inject _userService (GetUserIds id))
+getUserIds = request _userService <| GetUserIds id
 
 
 getUserById ∷ ∀ reqs. Id → Paxl (Service + reqs) User
-getUserById userId = request (inject _userService (GetUserById id userId))
+getUserById userId = request _userService <| GetUserById id userId
 
 
 getUserByName ∷ ∀ reqs. String → Paxl (Service + reqs) (Maybe User)
-getUserByName name = request (inject _userService (GetUserByName id name))
+getUserByName name = request _userService <| GetUserByName id name
 
 
 setUserJob ∷ ∀ reqs. Id → Job → Paxl (Service + reqs) User
-setUserJob userId job = request (inject _userService (SetUserJob id userId job))
+setUserJob userId job = request _userService <| SetUserJob id userId job
 
 _userService = SProxy ∷ SProxy "userService"
 
@@ -132,13 +132,11 @@ initialUsers =
       }
   ]
 
-
-instance hashableUserRequest ∷ Hashable UserRequest where
-  hash (GetUserIds _) = "GetUserIds"
-  hash (GetUserById _ userId) = "GetUserById: " <> show userId
-  hash (GetUserByName _ name) = "GetUserByName: " <> name
-  hash (SetUserJob _ userId job) = "SetUserJob: " <> show userId <> " " <> show job
-
+instance showUserRequest ∷ Show (UserRequest a) where
+  show (GetUserIds _) = "GetUserIds"
+  show (GetUserById _ userId) = "GetUserById: " <> show userId
+  show (GetUserByName _ name) = "GetUserByName: " <> name
+  show (SetUserJob _ userId job) = "SetUserJob: " <> show userId <> " " <> show job
 
 instance fetchableUserRequest ∷ Fetchable UserRequest { verbose ∷ Boolean, users ∷ Ref (Array User) } ( console ∷ CONSOLE, ref ∷ REF ) where
   fetch { verbose, users } blockedFetches = parallel do
@@ -159,7 +157,7 @@ instance fetchableUserRequest ∷ Fetchable UserRequest { verbose ∷ Boolean, u
       newUsers <$ writeRef users newUsers
     for_ blockedFetches \bf@(BlockedFetch { request, blockedVar }) → do
       when verbose do
-        log (" -> " <> hash request)
+        log (" -> " <> show request)
       case request of
         GetUserIds proof →
           completeBlockedFetchOf proof bf (Ok (currentUsers |> map \(User { id }) → id))
@@ -167,7 +165,7 @@ instance fetchableUserRequest ∷ Fetchable UserRequest { verbose ∷ Boolean, u
           completeBlockedFetchOf proof bf
             case Array.find (\(User { id }) → id == userId) currentUsers of
               Just user → Ok user
-              Nothing → ThrowPaxl (error ("No user found with id " <> show userId))
+              Nothing → Throw (error ("No user found with id " <> show userId))
         GetUserByName proof name → do
           let nameLower = String.toLower name
           completeBlockedFetchOf proof bf
@@ -176,4 +174,4 @@ instance fetchableUserRequest ∷ Fetchable UserRequest { verbose ∷ Boolean, u
           completeBlockedFetchOf proof bf
             case Array.find (\(User { id }) → id == userId) currentUsers of
               Just user → Ok user
-              Nothing → ThrowPaxl (error ("No user found with id " <> show userId))
+              Nothing → Throw (error ("No user found with id " <> show userId))

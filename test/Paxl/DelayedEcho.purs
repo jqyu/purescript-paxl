@@ -17,7 +17,7 @@ import Data.Int (toNumber) as Int
 import Data.Leibniz (type (~))
 import Data.Symbol (SProxy(..))
 import Data.Traversable (for_)
-import Paxl.Fetch (class Fetchable, class Hashable, Req, BlockedFetch(..), ResultVal(..), completeBlockedFetchOf, inject, request)
+import Paxl.Fetch (class Fetchable, Req, BlockedFetch(..), Result(..), completeBlockedFetchOf, request)
 
 
 type DelayedEcho reqs = ( delayedEcho ∷ Req DelayedEchoRequest | reqs )
@@ -33,11 +33,11 @@ print message = void <| string { message, milliseconds: 0 }
 
 
 string ∷ ∀ reqs. { message ∷ String, milliseconds ∷ Int } → Paxl (DelayedEcho + reqs) String
-string payload = request <| inject _delayedEcho <| DelayString id payload
+string payload = request _delayedEcho <| DelayString id payload
 
 
 int ∷ ∀ reqs. { message ∷ Int, milliseconds ∷ Int } → Paxl (DelayedEcho + reqs) Int
-int payload = request <| inject _delayedEcho <| DelayInt id payload
+int payload = request _delayedEcho <| DelayInt id payload
 
 
 _delayedEcho = SProxy ∷ SProxy "delayedEcho"
@@ -46,11 +46,6 @@ _delayedEcho = SProxy ∷ SProxy "delayedEcho"
 data DelayedEchoRequest a
   = DelayString (a ~ String) { message ∷ String, milliseconds ∷ Int }
   | DelayInt (a ~ Int) { message ∷ Int, milliseconds ∷ Int }
-
-
-instance hashableDelayedEcho ∷ Hashable DelayedEchoRequest where
-  hash (DelayString _ { message, milliseconds }) = "S" <> show milliseconds <> ":" <> message
-  hash (DelayInt _ { message, milliseconds }) = "I" <> show milliseconds <> ":" <> show message
 
 
 instance fetchableDelayedEcho ∷ Fetchable DelayedEchoRequest { verbose ∷ Boolean, prefix ∷ String } ( console :: CONSOLE | eff ) where
@@ -88,22 +83,22 @@ barEchoService = SProxy ∷ SProxy "barEchoService"
 
 fooDelayString ∷ ∀ reqs. String → Int → Paxl (Foo + reqs) String
 fooDelayString message milliseconds =
-  request (inject fooEchoService (DelayString id { message, milliseconds }))
+  request fooEchoService <| DelayString id { message, milliseconds }
 
 
 fooDelayInt ∷ ∀ reqs. Int → Int → Paxl (Foo + reqs) Int
 fooDelayInt message milliseconds =
-  request (inject fooEchoService (DelayInt id { message, milliseconds }))
+  request fooEchoService <| DelayInt id { message, milliseconds }
 
 
 barDelayString ∷ ∀ reqs. String → Int → Paxl (Bar + reqs) String
 barDelayString message milliseconds =
-  request (inject barEchoService (DelayString id { message, milliseconds }))
+  request barEchoService <| DelayString id { message, milliseconds }
 
 
 barDelayInt ∷ ∀ reqs. Int → Int → Paxl (Bar + reqs) Int
 barDelayInt message milliseconds =
-  request (inject barEchoService (DelayInt id { message, milliseconds }))
+  request barEchoService <| DelayInt id { message, milliseconds }
 
 
 

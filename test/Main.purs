@@ -49,9 +49,8 @@ main ∷ ∀ e. Eff (PaxlEffects (DelayedEcho + User.Service + ()) :+ e) Unit
 main = do
   users ← newRef User.initialUsers
   launchAff_ do
-    let env =
-          { delayedEcho: { verbose: true, prefix: "[DEBUG] " }
-          , userService: { verbose: true, users }
-          }
-    programEnv ← initEnv env
+    programEnv ← initEnv
+      { delayedEcho: { verbose: true, prefix: "[DEBUG] " }
+      , userService: { verbose: true, users }
+      }
     runPaxl programEnv program
