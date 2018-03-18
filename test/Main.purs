@@ -5,8 +5,8 @@ import Prelude
 import Control.Monad.Aff (launchAff_)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Ref (newRef)
-import Data.Traversable (for)
-import Paxl (type (+), type (:+), Par(..), Paxl, PaxlEffects, Seq(..), initEnv, runPaxl)
+import Data.Traversable (for, for_)
+import Paxl (type (+), type (:+), Par(..), Paxl, PaxlEffects, initEnv, runPaxl, (|>))
 import Test.Paxl.DelayedEcho (DelayedEcho)
 import Test.Paxl.DelayedEcho (print) as DelayedEcho
 import Test.Paxl.User (User)
@@ -19,7 +19,7 @@ program = do
   DelayedEcho.print "Example program 2"
   users ← getUsers
   printUsers(users)
-  Seq <$ for users \user → do
+  for_ users \user → do
     makeScientist user
   newUsers ← getUsers
   printUsers(newUsers)
@@ -52,4 +52,5 @@ main = do
         , userService: { verbose: true, users }
         }
   programEnv ← initEnv env
-  launchAff_ $ runPaxl programEnv program
+  runPaxl programEnv program
+    |> launchAff_

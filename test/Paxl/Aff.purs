@@ -11,7 +11,7 @@ import Control.Monad.Aff (Aff, error, parallel, try)
 import Data.Either (Either(..))
 import Data.Symbol (SProxy(..))
 import Data.Traversable (for_)
-import Paxl (type (+), Paxl)
+import Paxl (type (+), Paxl, (<|))
 import Paxl.Fetch (class Fetchable, BlockedFetch(..), Req, ResultVal(..), completeBlockedFetch, inject, request)
 
 
@@ -19,11 +19,11 @@ type LiftAff eff reqs = ( aff ∷ Req (AffWrapper eff) | reqs )
 
 
 succeed ∷ ∀ reqs eff a. Aff eff a → Paxl ( LiftAff eff + reqs ) a
-succeed aff = request (inject _aff (Succeed aff))
+succeed aff = request <| inject _aff <| Succeed aff
 
 
 fail ∷ ∀ reqs eff a. Paxl ( LiftAff eff + reqs ) a
-fail = request (inject _aff Fail)
+fail = request <| inject _aff <| Fail
 
 
 _aff = SProxy ∷ SProxy "aff"

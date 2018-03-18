@@ -29,7 +29,7 @@ import Data.StrMap (fromFoldable, lookup) as StrMap
 import Data.String (toLower) as String
 import Data.Symbol (SProxy(..))
 import Data.Tuple (Tuple(..))
-import Paxl (type (+), Paxl)
+import Paxl (type (+), Paxl, (<|), (|>))
 import Paxl.Fetch (class Fetchable, class Hashable, BlockedFetch(..), Req, ResultVal(..), completeBlockedFetchOf, hash, inject, request)
 
 -- User types
@@ -147,22 +147,23 @@ instance fetchableUserRequest ∷ Fetchable UserRequest { verbose ∷ Boolean, u
     -- change all users first
     let jobChanges ∷ StrMap Job
         jobChanges = StrMap.fromFoldable do
-          blockedFetches # Array.mapMaybe case _ of
+          blockedFetches |> Array.mapMaybe case _ of
             BlockedFetch { request: SetUserJob _ userId job } → Just (Tuple (show userId) job)
             _ → Nothing
     currentUsers ← liftEff do
       oldUsers ← readRef users
       let newUsers ∷ Array User
-          newUsers = oldUsers # map case _ of
+          newUsers = oldUsers |> map case _ of
             User u | Just newJob ← StrMap.lookup (show u.id) jobChanges →
               User u { job = newJob }
             user → user
       newUsers <$ writeRef users newUsers
     for_ blockedFetches \bf@(BlockedFetch { request, blockedVar }) → do
-      when verbose $ log (" -> " <> hash request)
+      when verbose do
+        log (" -> " <> hash request)
       case request of
         GetUserIds proof →
-          completeBlockedFetchOf proof bf (Ok (currentUsers # map \(User { id }) → id))
+          completeBlockedFetchOf proof bf (Ok (currentUsers |> map \(User { id }) → id))
         GetUserById proof userId →
           completeBlockedFetchOf proof bf
             case Array.find (\(User { id }) → id == userId) currentUsers of
@@ -171,7 +172,7 @@ instance fetchableUserRequest ∷ Fetchable UserRequest { verbose ∷ Boolean, u
         GetUserByName proof name → do
           let nameLower = String.toLower name
           completeBlockedFetchOf proof bf
-            $ Ok (Array.find (\(User { name }) → String.toLower name == nameLower) currentUsers)
+            <| Ok (Array.find (\(User { name }) → String.toLower name == nameLower) currentUsers)
         SetUserJob proof userId job →
           completeBlockedFetchOf proof bf
             case Array.find (\(User { id }) → id == userId) currentUsers of

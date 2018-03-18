@@ -17,7 +17,7 @@ import Data.Int (toNumber) as Int
 import Data.Leibniz (type (~))
 import Data.Symbol (SProxy(..))
 import Data.Traversable (for_)
-import Paxl (type (+), type (:+), Par(..), Paxl, PaxlEffects, initEnv, runPaxl)
+import Paxl (type (+), type (:+), Par(..), Paxl, PaxlEffects, initEnv, runPaxl, (<|), (|>))
 import Paxl.Fetch (class Fetchable, class Hashable, Req, BlockedFetch(..), ResultVal(..), completeBlockedFetchOf, inject, request)
 
 
@@ -34,11 +34,11 @@ print message = Par <$ string { message, milliseconds: 0 }
 
 
 string ∷ ∀ reqs. { message ∷ String, milliseconds ∷ Int } → Paxl (DelayedEcho + reqs) String
-string payload = request (inject _delayedEcho (DelayString id payload))
+string payload = request <| inject _delayedEcho <| DelayString id payload
 
 
 int ∷ ∀ reqs. { message ∷ Int, milliseconds ∷ Int } → Paxl (DelayedEcho + reqs) Int
-int payload = request (inject _delayedEcho (DelayInt id payload))
+int payload = request <| inject _delayedEcho <| DelayInt id payload
 
 
 _delayedEcho = SProxy ∷ SProxy "delayedEcho"
@@ -58,7 +58,7 @@ instance fetchableDelayedEcho ∷ Fetchable DelayedEchoRequest { verbose ∷ Boo
   fetch { verbose, prefix } blocked = parallel do
     when verbose do
       log (prefix <> "executing batch of " <> show (Array.length blocked) <> " requests")
-    sequential $ for_ blocked \bf@(BlockedFetch { request }) →
+    sequential <| for_ blocked \bf@(BlockedFetch { request }) →
       parallel case request of
         DelayString proof { message, milliseconds } → do
           when verbose do
@@ -115,7 +115,8 @@ test2 = do
        , barEchoService: { verbose: true, prefix: "[BAR] " }
        }
   paxlEnv ← initEnv userEnv
-  launchAff_ $ runPaxl paxlEnv test2Paxl
+  runPaxl paxlEnv test2Paxl
+    |> launchAff_
 
 
 test2Paxl ∷ Paxl (Foo + Bar + ()) Unit
