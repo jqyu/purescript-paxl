@@ -1,9 +1,7 @@
 module Paxl.Effect
   ( GENPAXL
   , GenPaxlEffects
-  , ApplyRowEffect
   , GenPaxlST
-  , type (:+)
   ) where
 
 import Control.Monad.Aff.AVar (AVAR)
@@ -21,8 +19,5 @@ type GenPaxlEffects req eff =
   , st ∷ ST GenPaxlST
   | eff
   )
-
-type ApplyRowEffect (f ∷ # Effect → # Effect) r = f r
-infixr 0 type ApplyRowEffect as :+
 
 data GenPaxlST

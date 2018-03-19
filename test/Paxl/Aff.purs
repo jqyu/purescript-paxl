@@ -18,11 +18,11 @@ type LiftAff eff reqs = ( aff ∷ Req (AffWrapper eff) | reqs )
 
 
 succeed ∷ ∀ reqs eff a. Aff eff a → Paxl ( LiftAff eff + reqs ) a
-succeed aff = request _aff <| Succeed aff
+succeed aff = request _aff ◁ Succeed aff
 
 
 fail ∷ ∀ reqs eff a. Paxl ( LiftAff eff + reqs ) a
-fail = request _aff <| Fail
+fail = request _aff ◁ Fail
 
 
 _aff = SProxy ∷ SProxy "aff"

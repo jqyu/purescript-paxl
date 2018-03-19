@@ -12,7 +12,7 @@ module Paxl.Fetch
   , module ReExports
   ) where
 
-import Prelude
+import Paxl.Prelude
 
 import Control.Monad.Aff (Aff, ParAff, error, parallel)
 import Control.Monad.Aff.AVar (AVar)
@@ -119,7 +119,8 @@ instance fetchableFetch ∷
            case StrMap.lookup name fetcherMap of
              Just (PerformFetch pf) → pf bfs
              Nothing → for_ bfs \bf → parallel do
-               completeBlockedFetch bf (RequestStore.Throw (error ("No fetcher found for Fetch:" <> name)))
+               completeBlockedFetch bf
+                 ◁ RequestStore.Throw (error ("No fetcher found for Fetch:" ⬦ name))
         where
           blockedFetchReps ∷ Array (BlockedFetch (FetchRep FVal) a)
           blockedFetchReps = unsafeCoerce blockedFetches
@@ -127,14 +128,15 @@ instance fetchableFetch ∷
           blockedFetchGroups ∷ StrMap (Array (BlockedFetch FVal a))
           blockedFetchGroups =
             blockedFetchReps
-            # Array.foldMap \bf@(BlockedFetch { request: FetchRep { sym, req }, blockedVar }) →
-                StrMap.singleton sym [ BlockedFetch { request: req, blockedVar }]
+            ▷ Array.foldMap case _ of
+                BlockedFetch { request: FetchRep { sym, req }, blockedVar } →
+                  StrMap.singleton sym [ BlockedFetch { request: req, blockedVar } ]
 
 
 inject ∷ ∀ sym req a r1 r2. RowCons sym (Req req) r1 r2 ⇒ IsSymbol sym ⇒ SProxy sym → req a → Fetch r2 a
 inject proxy req =
-  (unsafeCoerce ∷ FetchRep req a → Fetch r2 a)
-    (FetchRep { sym: reflectSymbol proxy, req })
+  FetchRep { sym: reflectSymbol proxy, req }
+    ▷ (unsafeCoerce ∷ FetchRep req a → Fetch r2 a)
 
 
 request ∷ ∀ sym req a r1 r2. RowCons sym (Req req) r1 r2 ⇒ IsSymbol sym ⇒ SProxy sym → req a → GenPaxl (Fetch r2) a
@@ -151,15 +153,17 @@ requestCached proxy req = GenPaxl \env → do
     RequestStore.peek env.requestStore key
   case cacheResult of
     Resolved (RequestStore.Ok a) →
-      pure (Done ((unsafeCoerce ∷ Val → a) a))
+      pure ◁ Done ((unsafeCoerce ∷ Val → a) a)
     Resolved (RequestStore.Throw err) →
-      pure (Throw err)
+      pure ◁ Throw err
     Waiting blockedVar →
-      pure (Blocked (Cont (awaitBlocked (unsafeCoerce blockedVar))))
+      pure ◁ Blocked (Cont (awaitBlocked (unsafeCoerce blockedVar)))
     Uncached → do
-      blockedFetch ← makeBlockedFetch (inject proxy req)
+      blockedFetch ← makeBlockedFetch ◁ inject proxy req
       liftEff do
-        RequestStore.poke env.requestStore key (unsafeCoerce blockedFetch)
+        blockedFetch
+          ▷ (unsafeCoerce ∷ BlockedFetch (Fetch r2) a → BlockedFetch (Fetch r2) Val)
+          ▷ RequestStore.poke env.requestStore key
       enqueueBlockedFetch env blockedFetch
         $> Blocked (Cont (awaitBlockedFetch blockedFetch))
 
@@ -170,7 +174,7 @@ awaitBlockedFetch (BlockedFetch { blockedVar }) = awaitBlocked blockedVar
 
 awaitBlocked ∷ ∀ req a. AVar (RequestStore.Result a) → GenPaxl req a
 awaitBlocked blockedVar = GenPaxl \_ →
-  AVar.readVar blockedVar <#> case _ of
+  AVar.readVar blockedVar ▷ map case _ of
     RequestStore.Ok a → Done a
     RequestStore.Throw err → Throw err
 
@@ -182,14 +186,14 @@ enqueueBlockedFetch { pending } blockedFetch = liftEff do
 
 makeBlockedFetch ∷ ∀ req a. req a → Aff (GenPaxlEffects req ()) (BlockedFetch req a)
 makeBlockedFetch req =
-  AVar.makeEmptyVar <#> \blockedVar → BlockedFetch { request: req, blockedVar }
+  AVar.makeEmptyVar ▷ map \blockedVar → BlockedFetch { request: req, blockedVar }
 
 
 completeBlockedFetch ∷ ∀ req eff a. BlockedFetch req a → RequestStore.Result a → Aff eff Unit
 completeBlockedFetch (BlockedFetch { blockedVar }) result =
-  unsafeCoerceAff $ AVar.putVar result blockedVar
+  unsafeCoerceAff ◁ AVar.putVar result blockedVar
 
 
 completeBlockedFetchOf ∷ ∀ req eff a b. (a ~ b) → BlockedFetch req a → RequestStore.Result b → Aff eff Unit
 completeBlockedFetchOf _ (BlockedFetch { blockedVar }) result =
-  unsafeCoerceAff $ AVar.putVar (unsafeCoerce result) blockedVar
+  unsafeCoerceAff ◁ AVar.putVar (unsafeCoerce result) blockedVar

@@ -44,17 +44,17 @@ derive instance newtypeUser ∷ Newtype User _
 
 instance showUser ∷ Show User where
   show (User { id, name, age, job }) =
-    name <> " "
-    <> "{ id: " <> show id
-    <> ", age: " <> show age
-    <> ", job: " <> show job
-    <> "}"
+    name ⬦ " "
+    ⬦ "{ id: " ⬦ show id
+    ⬦ ", age: " ⬦ show age
+    ⬦ ", job: " ⬦ show job
+    ⬦ "}"
 
 
 newtype Id = Id String
 
 instance showId ∷ Show Id where
-  show (Id str) = "#" <> str
+  show (Id str) = "#" ⬦ str
 
 derive newtype instance eqId ∷ Eq Id
 
@@ -93,19 +93,19 @@ data UserRequest a
 
 
 getUserIds ∷ ∀ reqs. Paxl (Service + reqs) (Array Id)
-getUserIds = request _userService <| GetUserIds id
+getUserIds = request _userService ◁ GetUserIds id
 
 
 getUserById ∷ ∀ reqs. Id → Paxl (Service + reqs) User
-getUserById userId = request _userService <| GetUserById id userId
+getUserById userId = request _userService ◁ GetUserById id userId
 
 
 getUserByName ∷ ∀ reqs. String → Paxl (Service + reqs) (Maybe User)
-getUserByName name = request _userService <| GetUserByName id name
+getUserByName name = request _userService ◁ GetUserByName id name
 
 
 setUserJob ∷ ∀ reqs. Id → Job → Paxl (Service + reqs) User
-setUserJob userId job = request _userService <| SetUserJob id userId job
+setUserJob userId job = request _userService ◁ SetUserJob id userId job
 
 _userService = SProxy ∷ SProxy "userService"
 
@@ -134,44 +134,44 @@ initialUsers =
 
 instance showUserRequest ∷ Show (UserRequest a) where
   show (GetUserIds _) = "GetUserIds"
-  show (GetUserById _ userId) = "GetUserById: " <> show userId
-  show (GetUserByName _ name) = "GetUserByName: " <> name
-  show (SetUserJob _ userId job) = "SetUserJob: " <> show userId <> " " <> show job
+  show (GetUserById _ userId) = "GetUserById: " ⬦ show userId
+  show (GetUserByName _ name) = "GetUserByName: " ⬦ name
+  show (SetUserJob _ userId job) = "SetUserJob: " ⬦ show userId ⬦ " " ⬦ show job
 
 instance fetchableUserRequest ∷ Fetchable UserRequest { verbose ∷ Boolean, users ∷ Ref (Array User) } ( console ∷ CONSOLE, ref ∷ REF ) where
   fetch { verbose, users } blockedFetches = parallel do
-    log ("UserService executing a batch of " <> show (Array.length blockedFetches) <> " requests")
+    log ("UserService executing a batch of " ⬦ show (Array.length blockedFetches) ⬦ " requests")
     -- change all users first
     let jobChanges ∷ StrMap Job
         jobChanges = StrMap.fromFoldable do
-          blockedFetches |> Array.mapMaybe case _ of
+          blockedFetches ▷ Array.mapMaybe case _ of
             BlockedFetch { request: SetUserJob _ userId job } → Just (Tuple (show userId) job)
             _ → Nothing
     currentUsers ← liftEff do
       oldUsers ← readRef users
       let newUsers ∷ Array User
-          newUsers = oldUsers |> map case _ of
+          newUsers = oldUsers ▷ map case _ of
             User u | Just newJob ← StrMap.lookup (show u.id) jobChanges →
               User u { job = newJob }
             user → user
       newUsers <$ writeRef users newUsers
     for_ blockedFetches \bf@(BlockedFetch { request, blockedVar }) → do
       when verbose do
-        log (" -> " <> show request)
+        log (" -> " ⬦ show request)
       case request of
         GetUserIds proof →
-          completeBlockedFetchOf proof bf (Ok (currentUsers |> map \(User { id }) → id))
+          completeBlockedFetchOf proof bf (Ok (currentUsers ▷ map \(User { id }) → id))
         GetUserById proof userId →
           completeBlockedFetchOf proof bf
             case Array.find (\(User { id }) → id == userId) currentUsers of
               Just user → Ok user
-              Nothing → Throw (error ("No user found with id " <> show userId))
+              Nothing → Throw (error ("No user found with id " ⬦ show userId))
         GetUserByName proof name → do
           let nameLower = String.toLower name
           completeBlockedFetchOf proof bf
-            <| Ok (Array.find (\(User { name }) → String.toLower name == nameLower) currentUsers)
+            ◁ Ok (Array.find (\(User { name }) → String.toLower name == nameLower) currentUsers)
         SetUserJob proof userId job →
           completeBlockedFetchOf proof bf
             case Array.find (\(User { id }) → id == userId) currentUsers of
               Just user → Ok user
-              Nothing → Throw (error ("No user found with id " <> show userId))
+              Nothing → Throw (error ("No user found with id " ⬦ show userId))

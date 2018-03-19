@@ -1,6 +1,6 @@
 module Paxl.Run (initEnv, runPaxl) where
 
-import Prelude
+import Paxl.Prelude
 
 import Control.Monad.Aff (ParAff, sequential, throwError)
 import Control.Monad.Aff.Class (class MonadAff, liftAff)
@@ -10,7 +10,7 @@ import Control.Monad.Eff.Ref (REF, newRef, readRef, writeRef)
 import Control.Monad.Eff.Unsafe (unsafeCoerceEff)
 import Data.Array (fromFoldable) as Array
 import Data.List (List(..), null) as List
-import Paxl.Effect (type (:+), GenPaxlEffects)
+import Paxl.Effect (GenPaxlEffects)
 import Paxl.Fetch (class Fetchable, BlockedFetch, fetch)
 import Paxl.Monad (GenPaxl(..), Env, Result(..), toPaxl)
 import Paxl.RequestStore (new) as RequestStore
@@ -33,15 +33,17 @@ unsafeLiftToPaxlEffects = unsafeCoerce
 
 
 runPaxl ∷ ∀ req eff a m. MonadAff ( GenPaxlEffects req :+ eff ) m ⇒ Env req → GenPaxl req a → m a
-runPaxl env@{ fetcher, pending } (GenPaxl m) =
-  liftAff $ unsafeCoerceAff do
-    result ← m env
-    case result of
-      Done a → pure a
-      Throw err → throwError err
-      Blocked cont → unsafeCoerceAff do
-        enqueuedFetches ← liftEff do
-          readRef pending <* writeRef pending List.Nil
-        when (not (List.null enqueuedFetches)) do
-          sequential (fetcher (Array.fromFoldable enqueuedFetches))
-        runPaxl env (toPaxl cont)
+runPaxl env@{ fetcher, pending } =
+    liftAff ∘ unsafeCoerceAff ∘ go
+  where
+    go (GenPaxl m) = do
+      result ← m env
+      case result of
+        Done a → pure a
+        Throw err → throwError err
+        Blocked cont → unsafeCoerceAff do
+          enqueuedFetches ← liftEff do
+            readRef pending <* writeRef pending List.Nil
+          when (not (List.null enqueuedFetches)) do
+            sequential (fetcher (Array.fromFoldable enqueuedFetches))
+          go ◁ toPaxl cont

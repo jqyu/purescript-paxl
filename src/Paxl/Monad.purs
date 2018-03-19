@@ -7,7 +7,7 @@ module Paxl.Monad
   , toPaxl
   ) where
 
-import Prelude
+import Paxl.Prelude
 
 import Control.Monad.Aff (Aff, Error, ParAff, parallel, sequential)
 import Control.Monad.Eff.Ref (Ref)
@@ -67,12 +67,12 @@ toPaxl (Bind m k) =
   case m of
     Cont paxl → paxl >>= k
     Bind m' k' → toPaxl (m' :>>= (k' >=> k))
-    Fmap f x → toPaxl (x :>>= (f >>> k))
+    Fmap f x → toPaxl (x :>>= (f ≫ k))
 toPaxl (Fmap f x) =
   case x of
     Cont paxl → f <$> paxl
     Bind m k → toPaxl (m :>>= (k >>> map f))
-    Fmap f' x' → toPaxl ((f <<< f') :<$> x')
+    Fmap g y → toPaxl ((f ∘ g) :<$> y)
 
 
 instance functorGenPaxl ∷ Functor (GenPaxl req) where

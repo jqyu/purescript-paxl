@@ -13,7 +13,7 @@ module Paxl.RequestStore
   , prefixKey
   ) where
 
-import Prelude
+import Paxl.Prelude
 
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.AVar (AVar, tryReadVar)
@@ -59,25 +59,25 @@ new = RequestStore <$> STStrMap.new
 
 
 peek ∷ ∀ req eff a. RequestStore req a → Key → Eff (GenPaxlEffects req eff) (CacheResult a)
-peek (RequestStore map) (Key key) = do
-  entry ← STStrMap.peek map key
+peek (RequestStore store) (Key key) = do
+  entry ← STStrMap.peek store key
   case entry of
     Nothing → pure Uncached
     Just (BlockedFetch { blockedVar }) → do
-      tryReadVar blockedVar <#> case _ of
+      tryReadVar blockedVar ▷ map case _ of
         Nothing → Waiting blockedVar
         Just result → Resolved result
 
 
 poke ∷ ∀ req eff a. RequestStore req a → Key → BlockedFetch req a → Eff (GenPaxlEffects req eff) Unit
-poke (RequestStore map) (Key key) bf = void do
-  STStrMap.poke map key bf
+poke (RequestStore store) (Key key) bf = void do
+  STStrMap.poke store key bf
 
 
 delete ∷ ∀ req eff a. RequestStore req a → Key → Eff (GenPaxlEffects req eff) Unit
-delete (RequestStore map) (Key key) = void do
-  STStrMap.delete map key
+delete (RequestStore store) (Key key) = void do
+  STStrMap.delete store key
 
 
 prefixKey ∷ ∀ sym. IsSymbol sym ⇒ SProxy sym → Key → Key
-prefixKey proxy (Key k) = Key (reflectSymbol proxy <> "∷" <> k)
+prefixKey proxy (Key k) = Key (reflectSymbol proxy ⬦ "∷" ⬦ k)
